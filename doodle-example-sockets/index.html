@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Socket IO doodle</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      canvas {border: 1px solid black;}
+    </style>
+  </head>
+  <body>
+    <canvas id="doodle-canvas" width="500" height="500"></canvas>
+    <ul id="messages"></ul>
+    <form action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+  <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+  <script src="socket.io/socket.io.js"></script>
+  <script  type="text/javascript" src="app.js"></script>
+  <script type="text/javascript">
+    var socket = io('http://localhost');
+    $('form').submit(function() {
+      socket.emit('chat message', $('#m').val());
+      $('#m').val('');
+      return false;
+    });
+    socket.on('chat massage from server', function (data, r, g, b) {
+      // body...
+      console.log('yo ' + data);
+      console.log(r);
+      $('body').css('background-color', 'rgb('+r+','+g+','+b+')');
+    });
+    //doodle here
+    var context = document.getElementById('doodle-canvas').getContext('2d');
+    var paint;
+    $('canvas').mousedown(function(e) {
+      var mouseX = e.pageX - this.offsetLeft;
+      var mouseY = e.pageY - this.offsetTop;
+      paint = true;
+      addClick(mouseX, mouseY);
+    });
+    $('canvas').mousemove(function(e){
+      if(paint){
+        addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+      }
+    });
+    $('canvas').mouseup(function(e){
+      paint = false;
+    });
+    $('canvas').mouseleave(function(e){
+      paint = false;
+    });
+    var clickX = new Array();
+    var clickY = new Array();
+    var clickDrag = new Array();
+
+    function addClick(x, y, dragging)
+    {
+      socket.emit('drawn area', x, y, dragging);
+    }
+    function redraw(){
+      //context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
+      
+      context.strokeStyle = "#df4b26";
+      context.lineJoin = "round";
+      context.lineWidth = 5;
+          
+      for(var i=0; i < clickX.length; i++) {    
+        context.beginPath();
+        if(clickDrag[i] && i){
+          context.moveTo(clickX[i-1], clickY[i-1]);
+         }else{
+           context.moveTo(clickX[i]-1, clickY[i]);
+         }
+         context.lineTo(clickX[i], clickY[i]);
+         context.closePath();
+         context.stroke();
+      }
+    }
+    socket.on('accumulated drawn area', function (x, y, dragging) {
+      console.log(x + ' : ' + y + ' : ' +dragging);
+      clickX.push(x);
+      clickY.push(y);
+      clickDrag.push(dragging);
+      redraw();
+    });
+  </script>
+  </body>
+</html>
